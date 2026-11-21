@@ -36,6 +36,36 @@ service cloud.firestore {
       }
     }
 
-    // messages/{msgId}: rules added in Task 5/7. Until then, default deny.
+    function validText(v) {
+      return v is string && v.size() > 0 && v.size() <= 500;
+    }
+
+    // Public board: any signed-in user may read every message, but only the
+    // author may create (as themselves), update, or delete their own.
+    match /messages/{msgId} {
+      allow read: if signedIn();
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(
+             ['text', 'authorUid', 'authorName', 'createdAt'])
+        && request.resource.data.authorUid == request.auth.uid
+        && validText(request.resource.data.text)
+        && request.resource.data.authorName is string
+        && request.resource.data.authorName.size() > 0
+        && request.resource.data.authorName.size() <= 101
+        && request.resource.data.createdAt == request.time;
+
+      // Owner may change only text and editedAt — never authorUid,
+      // authorName, or createdAt.
+      allow update: if signedIn()
+        && resource.data.authorUid == request.auth.uid
+        && request.resource.data.diff(resource.data)
+             .affectedKeys().hasOnly(['text', 'editedAt'])
+        && validText(request.resource.data.text)
+        && request.resource.data.editedAt == request.time;
+
+      allow delete: if signedIn()
+        && resource.data.authorUid == request.auth.uid;
+    }
   }
 }
