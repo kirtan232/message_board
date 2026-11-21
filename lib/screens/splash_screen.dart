@@ -100,16 +100,15 @@ class _SplashView extends StatelessWidget {
               Text(
                 'Message Board',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: scheme.onPrimary,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  color: scheme.onPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 'Chatboards for the new age',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: scheme.onPrimary.withValues(alpha: 0.85),
-                    ),
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(color: scheme.onPrimary.withValues(alpha: 0.85)),
               ),
               const SizedBox(height: 48),
               SizedBox(

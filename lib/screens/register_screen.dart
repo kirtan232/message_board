@@ -1,21 +1,21 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../models/app_user.dart';
 import '../services/auth_service.dart';
+import '../services/user_service.dart';
 import '../utils/validators.dart';
-
-/// Role values stored on the user record. Descriptive only — never used to
-/// grant access (security rules do not trust client-written roles).
-const List<String> kUserRoles = ['student', 'instructor', 'other'];
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({
     super.key,
     required this.auth,
+    required this.users,
     required this.onShowLogin,
   });
 
   final AuthService auth;
+  final UserService users;
   final VoidCallback onShowLogin;
 
   @override
@@ -47,17 +47,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (_busy || !_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
     setState(() => _busy = true);
+    // Hand the profile fields to ProfileGate, which writes users/{uid} as
+    // soon as auth state flips to signed-in (this screen is unmounted then).
+    widget.users.pendingDraft = ProfileDraft(
+      firstName: _firstName.text,
+      lastName: _lastName.text,
+      role: _role,
+    );
     try {
       final credential = await widget.auth.register(
         email: _email.text,
         password: _password.text,
       );
       if (credential.user == null) {
+        widget.users.pendingDraft = null;
         _showMessage('Registration did not complete. Please try again.');
-        return;
       }
-      // Task 3: write the Firestore user record (uid, names, role, datetime).
     } on FirebaseAuthException catch (error) {
+      widget.users.pendingDraft = null;
       _showMessage(friendlyAuthError(error));
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -72,10 +79,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   InputDecoration _decoration(String label, IconData icon) => InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-        border: const OutlineInputBorder(),
-      );
+    labelText: label,
+    prefixIcon: Icon(icon),
+    border: const OutlineInputBorder(),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -92,13 +99,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text('Create your account',
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.headlineSmall),
+                    Text(
+                      'Create your account',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.headlineSmall,
+                    ),
                     const SizedBox(height: 4),
-                    Text('Join the message board',
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.bodyMedium),
+                    Text(
+                      'Join the message board',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium,
+                    ),
                     const SizedBox(height: 24),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -110,8 +121,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             textCapitalization: TextCapitalization.words,
                             textInputAction: TextInputAction.next,
                             autofillHints: const [AutofillHints.givenName],
-                            decoration:
-                                _decoration('First name', Icons.person_outline),
+                            decoration: _decoration(
+                              'First name',
+                              Icons.person_outline,
+                            ),
                             validator: (v) =>
                                 Validators.name(v, label: 'first name'),
                           ),
@@ -143,7 +156,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           DropdownMenuItem(
                             value: role,
                             child: Text(
-                                role[0].toUpperCase() + role.substring(1)),
+                              role[0].toUpperCase() + role.substring(1),
+                            ),
                           ),
                       ],
                       onChanged: _busy
@@ -169,15 +183,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       autofillHints: const [AutofillHints.newPassword],
                       decoration: _decoration('Password', Icons.lock_outline)
                           .copyWith(
-                        helperText: 'At least 6 characters',
-                        suffixIcon: IconButton(
-                          tooltip: _obscure ? 'Show password' : 'Hide password',
-                          icon: Icon(_obscure
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined),
-                          onPressed: () => setState(() => _obscure = !_obscure),
-                        ),
-                      ),
+                            helperText: 'At least 6 characters',
+                            suffixIcon: IconButton(
+                              tooltip: _obscure
+                                  ? 'Show password'
+                                  : 'Hide password',
+                              icon: Icon(
+                                _obscure
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
+                              ),
+                              onPressed: () =>
+                                  setState(() => _obscure = !_obscure),
+                            ),
+                          ),
                       validator: Validators.newPassword,
                     ),
                     const SizedBox(height: 16),
@@ -187,8 +206,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       obscureText: _obscure,
                       textInputAction: TextInputAction.done,
                       onFieldSubmitted: (_) => _submit(),
-                      decoration:
-                          _decoration('Confirm password', Icons.lock_outline),
+                      decoration: _decoration(
+                        'Confirm password',
+                        Icons.lock_outline,
+                      ),
                       validator: (v) => v != _password.text
                           ? 'Passwords do not match.'
                           : null,
@@ -197,7 +218,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     FilledButton(
                       onPressed: _busy ? null : _submit,
                       style: FilledButton.styleFrom(
-                          minimumSize: const Size.fromHeight(48)),
+                        minimumSize: const Size.fromHeight(48),
+                      ),
                       child: _busy
                           ? const SizedBox(
                               width: 20,

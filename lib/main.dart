@@ -13,9 +13,7 @@ void main() {
 Future<void> initializeFirebase() async {
   // Firebase.initializeApp is safe to call again after a failed attempt.
   if (Firebase.apps.isNotEmpty) return;
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 }
 
 class MessageBoardApp extends StatelessWidget {

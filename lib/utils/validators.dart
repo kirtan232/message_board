@@ -3,8 +3,7 @@
 class Validators {
   Validators._();
 
-  static final RegExp _emailPattern =
-      RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+  static final RegExp _emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
   static String? email(String? value) {
     final v = value?.trim() ?? '';

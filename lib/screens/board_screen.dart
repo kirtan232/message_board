@@ -1,14 +1,21 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../models/app_user.dart';
 import '../services/auth_service.dart';
 
 /// The message board. Task 5 replaces the body with the live message stream.
 class BoardScreen extends StatelessWidget {
-  const BoardScreen({super.key, required this.auth, required this.user});
+  const BoardScreen({
+    super.key,
+    required this.auth,
+    required this.user,
+    required this.profile,
+  });
 
   final AuthService auth;
   final User user;
+  final AppUser profile;
 
   Future<void> _confirmSignOut(BuildContext context) async {
     final confirmed = await showDialog<bool>(
@@ -45,7 +52,10 @@ class BoardScreen extends StatelessWidget {
         ],
       ),
       body: Center(
-        child: Text('Signed in as ${user.email}'),
+        child: Text(
+          'Welcome, ${profile.fullName} (${profile.role})\n${user.email}',
+          textAlign: TextAlign.center,
+        ),
       ),
     );
   }

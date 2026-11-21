@@ -1,0 +1,41 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function validName(v) {
+      return v is string && v.size() > 0 && v.size() <= 50;
+    }
+
+    // Private user record: only its owner may read it. It is created exactly
+    // once at registration with the five required fields; updates and
+    // deletes are denied so registrationDateTime can never be reset.
+    // `role` is descriptive only and is never used to grant access.
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(
+             ['uid', 'firstName', 'lastName', 'role', 'registrationDateTime'])
+        && request.resource.data.uid == uid
+        && validName(request.resource.data.firstName)
+        && validName(request.resource.data.lastName)
+        && request.resource.data.role in ['student', 'instructor', 'other']
+        && request.resource.data.registrationDateTime == request.time;
+      allow update, delete: if false;
+
+      // Notification prefs (Opt-In Notifier spice): owner only.
+      match /prefs/{doc} {
+        allow read, write: if isOwner(uid);
+      }
+    }
+
+    // messages/{msgId}: rules added in Task 5/7. Until then, default deny.
+  }
+}

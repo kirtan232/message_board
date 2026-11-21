@@ -2,8 +2,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
-import 'board_screen.dart';
+import '../services/user_service.dart';
 import 'login_screen.dart';
+import 'profile_gate.dart';
 import 'register_screen.dart';
 
 /// Routes by auth state: signed-out users see login/register,
@@ -17,6 +18,7 @@ class AuthGate extends StatefulWidget {
 
 class _AuthGateState extends State<AuthGate> {
   final AuthService _auth = AuthService();
+  final UserService _users = UserService();
   bool _showRegister = false;
 
   @override
@@ -42,6 +44,7 @@ class _AuthGateState extends State<AuthGate> {
           return _showRegister
               ? RegisterScreen(
                   auth: _auth,
+                  users: _users,
                   onShowLogin: () => setState(() => _showRegister = false),
                 )
               : LoginScreen(
@@ -50,8 +53,13 @@ class _AuthGateState extends State<AuthGate> {
                 );
         }
 
-        // Task 3 inserts ProfileGate here to require the Firestore user record.
-        return BoardScreen(key: ValueKey(user.uid), auth: _auth, user: user);
+        // The board stays behind a complete Firestore user record.
+        return ProfileGate(
+          key: ValueKey(user.uid),
+          user: user,
+          auth: _auth,
+          users: _users,
+        );
       },
     );
   }

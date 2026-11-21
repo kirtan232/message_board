@@ -38,10 +38,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _busy = true);
     try {
       // AuthGate switches screens when auth state changes; no navigation here.
-      await widget.auth.signIn(
-        email: _email.text,
-        password: _password.text,
-      );
+      await widget.auth.signIn(email: _email.text, password: _password.text);
     } on FirebaseAuthException catch (error) {
       _showMessage(friendlyAuthError(error));
     } finally {
@@ -71,13 +68,17 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text('Welcome back',
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.headlineSmall),
+                    Text(
+                      'Welcome back',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.headlineSmall,
+                    ),
                     const SizedBox(height: 4),
-                    Text('Sign in to the message board',
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.bodyMedium),
+                    Text(
+                      'Sign in to the message board',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium,
+                    ),
                     const SizedBox(height: 32),
                     TextFormField(
                       controller: _email,
@@ -106,9 +107,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         border: const OutlineInputBorder(),
                         suffixIcon: IconButton(
                           tooltip: _obscure ? 'Show password' : 'Hide password',
-                          icon: Icon(_obscure
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined),
+                          icon: Icon(
+                            _obscure
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
                           onPressed: () => setState(() => _obscure = !_obscure),
                         ),
                       ),
@@ -118,7 +121,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     FilledButton(
                       onPressed: _busy ? null : _submit,
                       style: FilledButton.styleFrom(
-                          minimumSize: const Size.fromHeight(48)),
+                        minimumSize: const Size.fromHeight(48),
+                      ),
                       child: _busy
                           ? const SizedBox(
                               width: 20,
