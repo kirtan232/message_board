@@ -6,6 +6,7 @@ import '../models/message.dart';
 import '../services/auth_service.dart';
 import '../services/board_service.dart';
 import '../utils/format.dart';
+import '../widgets/edit_message_dialog.dart';
 
 /// The message board: a live stream of messages plus a composer.
 class BoardScreen extends StatefulWidget {
@@ -37,6 +38,9 @@ class _BoardScreenState extends State<BoardScreen> {
   /// message targets the same document, so only one is ever created.
   late String _draftId = _board.newMessageId();
 
+  /// Messages with an edit/delete in flight (prevents double actions).
+  final Set<String> _busyIds = {};
+
   @override
   void dispose() {
     _composer.dispose();
@@ -67,6 +71,70 @@ class _BoardScreenState extends State<BoardScreen> {
       _showMessage(error.message);
     } finally {
       if (mounted) setState(() => _posting = false);
+    }
+  }
+
+  Future<void> _showActions(Message message) async {
+    if (_busyIds.contains(message.id)) return;
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text('Edit message'),
+              onTap: () => Navigator.pop(context, 'edit'),
+            ),
+            ListTile(
+              leading: Icon(
+                Icons.delete_outline,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              title: Text(
+                'Delete message',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+              onTap: () => Navigator.pop(context, 'delete'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (action == 'edit') await _edit(message);
+    if (action == 'delete') await _delete(message);
+  }
+
+  Future<void> _edit(Message message) async {
+    final newText = await showEditMessageDialog(context, message);
+    if (newText == null) return;
+    await _runBusy(message.id, () async {
+      await _board.editMessage(messageId: message.id, newText: newText);
+      _showMessage('Message updated.');
+    });
+  }
+
+  Future<void> _delete(Message message) async {
+    if (!await confirmDeleteMessage(context)) return;
+    await _runBusy(message.id, () async {
+      await _board.deleteMessage(messageId: message.id);
+      _showMessage('Message deleted.');
+    });
+  }
+
+  /// Marks [id] busy while [action] runs; the stream re-renders the board,
+  /// so there is no manual refresh. Rule denials surface as friendly text.
+  Future<void> _runBusy(String id, Future<void> Function() action) async {
+    setState(() => _busyIds.add(id));
+    try {
+      await action();
+    } on BoardException catch (error) {
+      _showMessage(error.message);
+    } finally {
+      if (mounted) setState(() => _busyIds.remove(id));
     }
   }
 
@@ -164,10 +232,15 @@ class _BoardScreenState extends State<BoardScreen> {
           itemCount: messages.length,
           itemBuilder: (context, index) {
             final message = messages[messages.length - 1 - index];
+            final isMine = message.isOwnedBy(widget.user.uid);
             return _MessageBubble(
               key: ValueKey(message.id),
               message: message,
-              isMine: message.isOwnedBy(widget.user.uid),
+              isMine: isMine,
+              busy: _busyIds.contains(message.id),
+              // Convenience only: the security rules are what actually
+              // block edits/deletes of other users' messages.
+              onActions: isMine ? () => _showActions(message) : null,
             );
           },
         );
@@ -181,10 +254,16 @@ class _MessageBubble extends StatelessWidget {
     super.key,
     required this.message,
     required this.isMine,
+    this.busy = false,
+    this.onActions,
   });
 
   final Message message;
   final bool isMine;
+  final bool busy;
+
+  /// Opens the edit/delete sheet. Null for other users' messages.
+  final VoidCallback? onActions;
 
   @override
   Widget build(BuildContext context) {
@@ -209,41 +288,74 @@ class _MessageBubble extends StatelessWidget {
         constraints: BoxConstraints(
           maxWidth: MediaQuery.sizeOf(context).width * 0.78,
         ),
-        child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-          decoration: BoxDecoration(
-            color: background,
-            borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(16),
-              topRight: const Radius.circular(16),
-              bottomLeft: Radius.circular(isMine ? 16 : 4),
-              bottomRight: Radius.circular(isMine ? 4 : 16),
+        child: GestureDetector(
+          onLongPress: busy ? null : onActions,
+          child: Container(
+            margin: const EdgeInsets.symmetric(vertical: 4),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+            decoration: BoxDecoration(
+              color: background,
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(16),
+                topRight: const Radius.circular(16),
+                bottomLeft: Radius.circular(isMine ? 16 : 4),
+                bottomRight: Radius.circular(isMine ? 4 : 16),
+              ),
             ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                isMine ? 'You' : message.authorName,
-                style: textTheme.labelMedium?.copyWith(
-                  color: foreground,
-                  fontWeight: FontWeight.bold,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        isMine ? 'You' : message.authorName,
+                        style: textTheme.labelMedium?.copyWith(
+                          color: foreground,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    if (onActions != null) ...[
+                      const SizedBox(width: 8),
+                      if (busy)
+                        SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: foreground,
+                          ),
+                        )
+                      else
+                        InkWell(
+                          onTap: onActions,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Icon(
+                            Icons.more_horiz,
+                            size: 18,
+                            color: foreground,
+                            semanticLabel: 'Message actions',
+                          ),
+                        ),
+                    ],
+                  ],
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                message.text,
-                style: textTheme.bodyLarge?.copyWith(color: foreground),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                meta,
-                style: textTheme.labelSmall?.copyWith(
-                  color: foreground.withValues(alpha: 0.7),
+                const SizedBox(height: 2),
+                Text(
+                  message.text,
+                  style: textTheme.bodyLarge?.copyWith(color: foreground),
                 ),
-              ),
-            ],
+                const SizedBox(height: 4),
+                Text(
+                  meta,
+                  style: textTheme.labelSmall?.copyWith(
+                    color: foreground.withValues(alpha: 0.7),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
