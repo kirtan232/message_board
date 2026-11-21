@@ -7,6 +7,7 @@ import '../services/auth_service.dart';
 import '../services/board_service.dart';
 import '../utils/format.dart';
 import '../widgets/edit_message_dialog.dart';
+import 'rules_check_screen.dart';
 
 /// The message board: a live stream of messages plus a composer.
 class BoardScreen extends StatefulWidget {
@@ -178,6 +179,19 @@ class _BoardScreenState extends State<BoardScreen> {
               child: Text(
                 widget.profile.firstName,
                 style: Theme.of(context).textTheme.labelLarge,
+              ),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Rules check',
+            icon: const Icon(Icons.shield_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => RulesCheckScreen(
+                  uid: widget.user.uid,
+                  displayName: widget.profile.fullName,
+                  email: widget.user.email ?? '',
+                ),
               ),
             ),
           ),
