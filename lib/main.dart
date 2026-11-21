@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
 import 'firebase_options.dart';
+import 'screens/auth_gate.dart';
 import 'screens/splash_screen.dart';
 
 void main() {
@@ -31,20 +32,8 @@ class MessageBoardApp extends StatelessWidget {
       ),
       home: SplashScreen(
         initialize: initializeFirebase,
-        // Task 2 replaces this placeholder with the AuthGate.
-        onReady: (_) => const _FirebaseReadyPlaceholder(),
+        onReady: (_) => const AuthGate(),
       ),
-    );
-  }
-}
-
-class _FirebaseReadyPlaceholder extends StatelessWidget {
-  const _FirebaseReadyPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: Text('Firebase initialized ✔')),
     );
   }
 }
