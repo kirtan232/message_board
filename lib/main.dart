@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
+import 'emulator_config.dart';
 import 'firebase_options.dart';
 import 'screens/auth_gate.dart';
 import 'screens/splash_screen.dart';
@@ -14,6 +15,7 @@ Future<void> initializeFirebase() async {
   // Firebase.initializeApp is safe to call again after a failed attempt.
   if (Firebase.apps.isNotEmpty) return;
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await connectToEmulatorsIfEnabled();
 }
 
 class MessageBoardApp extends StatelessWidget {
@@ -30,7 +32,13 @@ class MessageBoardApp extends StatelessWidget {
       ),
       home: SplashScreen(
         initialize: initializeFirebase,
-        onReady: (_) => const AuthGate(),
+        onReady: (_) => kUseEmulator
+            ? const Banner(
+                message: 'EMULATOR',
+                location: BannerLocation.topEnd,
+                child: AuthGate(),
+              )
+            : const AuthGate(),
       ),
     );
   }

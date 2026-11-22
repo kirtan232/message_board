@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 
+import '../emulator_config.dart';
 import '../firebase_options.dart';
 
 /// Outcome of one security-rules probe.
@@ -56,12 +57,14 @@ class RulesProbeService {
   /// A second Firebase app instance that has no signed-in user, so its
   /// requests reach Firestore with `request.auth == null`.
   Future<FirebaseFirestore> _signedOutDb() async {
-    final app = Firebase.apps.any((a) => a.name == _probeAppName)
-        ? Firebase.app(_probeAppName)
-        : await Firebase.initializeApp(
-            name: _probeAppName,
-            options: DefaultFirebaseOptions.currentPlatform,
-          );
+    if (Firebase.apps.any((a) => a.name == _probeAppName)) {
+      return FirebaseFirestore.instanceFor(app: Firebase.app(_probeAppName));
+    }
+    final app = await Firebase.initializeApp(
+      name: _probeAppName,
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    await connectToEmulatorsIfEnabled(app);
     return FirebaseFirestore.instanceFor(app: app);
   }
 

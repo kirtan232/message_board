@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/board_service.dart';
 import '../services/rules_probe_service.dart';
 import '../utils/format.dart';
 
@@ -27,6 +28,57 @@ class _RulesCheckScreenState extends State<RulesCheckScreen> {
   List<ProbeResult>? _results;
   DateTime? _ranAt;
   bool _running = false;
+
+  final BoardService _board = BoardService();
+  String? _dupResult;
+  bool? _dupPassed;
+  bool _dupRunning = false;
+
+  /// Spice #4 evidence: fire the same post twice at once (a double-tap /
+  /// retry) through the real BoardService, then count documents on the server.
+  Future<void> _runDuplicateCheck() async {
+    if (_dupRunning) return;
+    setState(() {
+      _dupRunning = true;
+      _dupResult = null;
+      _dupPassed = null;
+    });
+    try {
+      final before = await _board.countMessagesBy(widget.uid);
+      final id = _board.newMessageId();
+      const text = '[duplicate check] posted twice with one id';
+      await Future.wait([
+        for (var i = 0; i < 2; i++)
+          _board.postMessage(
+            messageId: id,
+            authorUid: widget.uid,
+            authorName: widget.displayName,
+            text: text,
+          ),
+      ]);
+      final after = await _board.countMessagesBy(widget.uid);
+      final stored = await _board.getMessage(id);
+      await _board.deleteMessage(messageId: id); // clean up the probe
+
+      final created = after - before;
+      final passed = created == 1 && stored?.text == text;
+      setState(() {
+        _dupPassed = passed;
+        _dupResult =
+            'Calls sent: 2 (same id $id)\n'
+            'Your messages before: $before, after: $after\n'
+            'New documents created: $created (expected 1)\n'
+            'Probe message deleted afterwards.';
+      });
+    } on BoardException catch (e) {
+      setState(() {
+        _dupPassed = false;
+        _dupResult = 'Error: ${e.message}';
+      });
+    } finally {
+      if (mounted) setState(() => _dupRunning = false);
+    }
+  }
 
   Future<void> _run() async {
     if (_running) return;
@@ -102,6 +154,43 @@ class _RulesCheckScreenState extends State<RulesCheckScreen> {
             const SizedBox(height: 8),
             for (var i = 0; i < results.length; i++)
               _ResultTile(index: i + 1, result: results[i]),
+          ],
+          const Divider(height: 40),
+          Text('Duplicate-submit check', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 4),
+          const Text(
+            'Sends the same post twice at the same moment (like a double-tap '
+            'or a retry) and counts how many documents Firestore stored.',
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _dupRunning ? null : _runDuplicateCheck,
+            icon: _dupRunning
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.copy_all),
+            label: Text(_dupRunning ? 'Running…' : 'Run duplicate check'),
+          ),
+          if (_dupResult != null) ...[
+            const SizedBox(height: 12),
+            Card(
+              color: _dupPassed == true
+                  ? Colors.green.withValues(alpha: 0.15)
+                  : theme.colorScheme.errorContainer,
+              child: ListTile(
+                leading: Icon(
+                  _dupPassed == true ? Icons.check_circle : Icons.error,
+                  color: _dupPassed == true
+                      ? Colors.green
+                      : theme.colorScheme.error,
+                ),
+                title: Text(_dupPassed == true ? 'PASS' : 'FAIL'),
+                subtitle: Text(_dupResult!),
+              ),
+            ),
           ],
         ],
       ),

@@ -82,6 +82,23 @@ class BoardService {
         .map((snap) => snap.docs.map(Message.fromSnapshot).toList());
   }
 
+  /// READ (once) — a single message straight from the server, or null.
+  Future<Message?> getMessage(String messageId) async {
+    final doc = await _guard(
+      () =>
+          _messages.doc(messageId).get(const GetOptions(source: Source.server)),
+    );
+    return doc.exists ? Message.fromSnapshot(doc) : null;
+  }
+
+  /// READ (once) — how many messages this author has, from the server.
+  Future<int> countMessagesBy(String authorUid) async {
+    final agg = await _guard(
+      () => _messages.where('authorUid', isEqualTo: authorUid).count().get(),
+    );
+    return agg.count ?? 0;
+  }
+
   /// UPDATE — own message only (rules enforce it). Changes text + editedAt.
   Future<void> editMessage({
     required String messageId,
