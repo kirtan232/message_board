@@ -9,7 +9,7 @@ class SplashScreen extends StatefulWidget {
     super.key,
     required this.initialize,
     required this.onReady,
-    this.minimumDuration = const Duration(milliseconds: 1500),
+    this.minimumDuration = const Duration(seconds: 2),
   });
 
   /// The startup work to run, e.g. `Firebase.initializeApp(...)`.
@@ -35,10 +35,17 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _runStartup() async {
-    await Future.wait([
-      widget.initialize(),
-      Future<void>.delayed(widget.minimumDuration),
-    ]);
+    await Future.wait([widget.initialize(), _keepVisible()]);
+  }
+
+  /// Starts the minimum-display timer only after the splash is actually on
+  /// screen. On a cold start, Android's launch screen stays up until Flutter
+  /// rasterizes its first frame, which can take a few seconds on slow
+  /// devices; without this the timer would expire before the splash is seen.
+  Future<void> _keepVisible() async {
+    if (widget.minimumDuration == Duration.zero) return;
+    await WidgetsBinding.instance.waitUntilFirstFrameRasterized;
+    await Future<void>.delayed(widget.minimumDuration);
   }
 
   void _retry() {

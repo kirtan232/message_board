@@ -115,6 +115,10 @@ The rules are in [`firestore.rules`](firestore.rules). Hiding the edit button is
 
 ## Screenshots
 
+* Splash screen while Firebase starts (release APK)
+
+  <img src="screenshots/00_splash.png" width="250">
+
 * Login screen
 
   <img src="screenshots/01_login.png" width="250">
@@ -166,3 +170,15 @@ The rules are in [`firestore.rules`](firestore.rules). Hiding the edit button is
 * The two test accounts in Firebase Authentication
 
   <img src="screenshots/16_firebase_auth_users.png" width="600">
+
+* Rules Check on the release APK: 11 / 11 passed. Signed-out read/create and the forged `authorUid` are all denied by Firestore (`permission-denied`)
+
+  <img src="screenshots/18_rules_check_top.png" width="250">
+
+* Rest of the rules checks (editing/deleting someone else's message, reading their user record, resetting my registration date are all denied) and the duplicate check: 2 calls with the same id made only 1 document
+
+  <img src="screenshots/19_rules_check_bottom_duplicate.png" width="250">
+
+* After fully closing the app and opening it again I'm still signed in and the board loads
+
+  <img src="screenshots/20_relaunch_still_signed_in.png" width="250">
